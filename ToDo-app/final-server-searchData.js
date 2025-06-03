@@ -1,6 +1,7 @@
 const http = require('http')
 const path = require('path')
 const fs = require('fs')
+const { error } = require('console')
 const port = 3000
 const filepath = path.join(__dirname, './db/todo.json')
 
@@ -28,14 +29,16 @@ const server = http.createServer((req, res) => {
         let newPost = ""
 
         req.on('data', (chunk) => {
-            data = newPost + chunk
+           newPost += chunk
+
         })
 
         req.on('end', () => {
             // console.log( 'datadata', data)
             // const todo = JSON.parse(data)
-
-            const { title, body } = JSON.parse(data)
+            // console.log("new", newPost)
+            
+            const { title, body } = JSON.parse(newPost)
             // console.log({ title, body })
 
             const createdAt = new Date().toLocaleString()
@@ -52,7 +55,7 @@ const server = http.createServer((req, res) => {
         })
 
     }
-    //  get data 
+    //  search data 
     else if (pathname === '/todo' && req.method === 'GET') {
         //  console.log(req.url , 'from single todo')
         const title = url.searchParams.get('title')
@@ -68,6 +71,41 @@ const server = http.createServer((req, res) => {
 
         res.end(strTodo)
     }
+    // update data = pathch : http://localhost:3000/todo/update?title=faridpur
+    else if(pathname === '/todo/update' && req.method === 'PATCH'){
+        const title = url.searchParams.get('title')
+        console.log(title)
+
+        let updateData = ''
+        req.on('data', (chunk)=>{
+            updateData += chunk;
+
+            console.log('data 2 ', updateData)
+        })
+
+        req.on('end',()=>{
+            if(!updateData){
+              return res.end(JSON.stringify({
+                    error : 'emty request body'
+                }))
+            }
+            const {body} = JSON.parse(updateData)
+
+            const allToDos = fs.readFileSync(filePath, {encoding: 'utf-8'})
+            const parsedAllTodos = JSON.parse(allToDos)
+
+            const todoIndex = parsedAllTodos.findIndex((single_todo)=> single_todo.title === title)
+            
+            parsedAllTodos[todoIndex].body = body
+
+            fs.writeFileSync(filePath, JSON.stringify(parsedAllTodos, null, 2), {
+                encoding: 'utf-8'
+            })
+
+            res.end(JSON.stringify({title, body, createdAt : parsedAllTodos[todoIndex].createdAt}))
+        })
+    }
+
     else {
         res.end('Route not found')
     }
